@@ -1,0 +1,181 @@
+# MOSES data publication as OGC services
+
+
+## Datasets
+
+* NUTS with 3 different levels
+* Indicator data
+
+
+## Indicator conversion
+
+
+
+
+## DB model
+
+List of tables:
+
+* nuts
+* moses_status
+* moses_activities
+* moses_indicators
+* moses_indicator_values
+
+List of views:
+
+* nuts_level_1
+* nuts_level_2
+* nuts_level_3
+
+## DB data loading
+
+Load data using OGR:
+
+```
+DATADIR=/data/project/2019/ifremer/moses/20190520
+DBNAME=moses
+DBUSER=www-data
+DBPASSWORD=www-data
+DBSERVER=localhost
+DBPORT=5432
+SHPENCODING=LATIN1
+
+cd $DATADIR
+PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+ PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+ -lco GEOM_TYPE=geometry \
+ -lco OVERWRITE=YES \
+ -overwrite \
+ -nlt MULTIPOLYGON \
+ -nln nuts \
+ NUTS.shp
+
+PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+ PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+ -nln moses_activities_tmp -overwrite \
+ moses_NACES.csv
+
+PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+ PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+ -nln moses_indicators_tmp -overwrite \
+ moses_indicator.csv
+
+PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+ PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+ -nln moses_status_tmp -overwrite \
+ moses_status.csv
+
+PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+ PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+ -nln moses_values_tmp -overwrite \
+ moses_values.csv
+
+
+#PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
+# PG:"host=$DBSERVER port=$DBPORT user=$DBUSER password=$DBPASSWORD dbname=$DBNAME" \
+# -lco GEOM_TYPE=geometry \
+# -lco OVERWRITE=YES \
+# -nlt MULTIPOLYGON \
+# -nln moses_indicator_values_tmp \
+# NUTS_data.shp
+
+```
+
+
+DB script to create index, views and reorganize indicator data:
+
+```
+-- Create index and views on Nuts data
+CREATE INDEX nuts_levl_code_idx ON nuts (levl_code);
+ALTER TABLE nuts ADD CONSTRAINT nuts_id_uk UNIQUE (nuts_id);
+CREATE INDEX nuts_levl_code_idx ON nuts (nuts_id);
+CREATE OR REPLACE VIEW nuts_level_1 AS SELECT * FROM nuts WHERE levl_code = 1;
+CREATE OR REPLACE VIEW nuts_level_2 AS SELECT * FROM nuts WHERE levl_code = 2;
+CREATE OR REPLACE VIEW nuts_level_3 AS SELECT * FROM nuts WHERE levl_code = 3;
+
+
+-- Activities
+DROP TABLE IF EXISTS moses_activities CASCADE;
+CREATE TABLE moses_activities
+(
+  id character varying(10) PRIMARY KEY,
+  section character varying(1) NOT NULL,
+  div character varying(2) NOT NULL,
+  name character varying(254)
+);
+
+INSERT INTO moses_activities SELECT nace_id, nace_section, nace_div, nace_descr FROM moses_activities_tmp WHERE nace_id IS NOT NULL AND nace_id != '';
+
+
+-- Status
+DROP TABLE IF EXISTS moses_status CASCADE;
+CREATE TABLE moses_status
+(
+  id character varying(2) PRIMARY KEY,
+  name character varying(254)
+);
+
+INSERT INTO moses_status SELECT status_id, status_descr FROM moses_status_tmp WHERE status_id IS NOT NULL AND status_id != '';
+
+
+-- Indicators
+DROP TABLE IF EXISTS moses_indicators CASCADE;
+CREATE TABLE moses_indicators
+(
+  id character varying(10) PRIMARY KEY,
+  activity_id character varying(10) REFERENCES moses_activities(id),
+  name character varying(100),
+  unit character varying(100)
+);
+
+INSERT INTO moses_indicators SELECT ind_id, null, ind_name, ind_unit FROM moses_indicators_tmp WHERE ind_id IS NOT NULL AND ind_id != '';
+
+
+
+
+-- Indicator values
+DROP TABLE IF EXISTS moses_indicator_values CASCADE;
+CREATE TABLE moses_indicator_values
+(
+  nuts_id character varying(254) REFERENCES nuts(nuts_id),
+  activity_id character varying(10) REFERENCES moses_activities(id),
+  indicator_id character varying(10) REFERENCES moses_indicators(id),
+  year character varying(4),
+  value numeric(24,15),
+  status character varying(25),
+  data_source character varying(254),
+  website character varying(254),
+  remarks character varying(254),
+  CONSTRAINT moses_indicator_valuess_pkey PRIMARY KEY (nuts_id, activity_id, indicator_id, year)
+);
+
+
+-- TODO: Check duplicates first
+-- TODO: List non existing indicators
+
+
+INSERT INTO moses_indicator_values
+ (SELECT nuts_id, nacescode, indicators, 2013, replace(year2013, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3, data_sourc, website, remarks FROM moses_values_tmp WHERE year2013 != ''
+ UNION ALL
+ SELECT nuts_id, nacescode, indicators, 2014, replace(year2014, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp WHERE year2014 != ''
+ UNION ALL
+ SELECT nuts_id, nacescode, indicators, 2015, replace(year2015, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp WHERE year2015 != '');
+
+
+CREATE OR REPLACE VIEW moses_indicator_values_with_nuts AS (
+SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
+  FROM nuts n, moses_indicator_values i 
+  WHERE n.nuts_id = i.nuts_id);
+  
+CREATE OR REPLACE VIEW moses_indicator_level_1 AS (
+SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
+  FROM nuts n, moses_indicator_values i 
+  WHERE n.nuts_id = i.nuts_id AND n.levl_code = 1);
+
+```
+
+
+## Mapfile creation
+
+
