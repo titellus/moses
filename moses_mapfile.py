@@ -5,7 +5,6 @@ import re
 import os
 
 
-# Mapfile builder is used to create a mapfile
 class MapfileBuilder:
   HEADER = """MAP
     NAME "{projectName}"
@@ -15,6 +14,9 @@ class MapfileBuilder:
     SYMBOLSET "symbol/symbols.txt"
     FONTSET "fonts/fonts.txt"
   
+    DEBUG {debug}
+    CONFIG "MS_ERRORFILE" "stderr"
+    
     OUTPUTFORMAT
       NAME "PNGA"
       DRIVER "AGG/PNG"
@@ -47,7 +49,7 @@ class MapfileBuilder:
       IMAGEPATH "/var/www/mapserver/tmp/"
       METADATA
         wms_title "{projectName}"
-        wms_onlineresource "http://www.ifremer.fr/services/wms/moses"
+        wms_onlineresource "{wmsBaseUrl}"
         wms_srs "CRS:84 EPSG:4326 EPSG:27582 EPSG:3395 EPSG:2154 EPSG:3857"
         wms_abstract "Web Map Service for MOSES"
         wms_accessconstraints "None"
@@ -62,7 +64,7 @@ class MapfileBuilder:
         wms_encoding "ISO-8859-15"
         wms_inspire_temporal_reference "2013-08-14"
         wms_inspire_mpoc_name "Equipe Sextant"
-        wms_inspire_resourcelocator "http://www.ifremer.fr/services/wms/moses"
+        wms_inspire_resourcelocator "{wmsBaseUrl}"
         wms_inspire_mpoc_email "sextant@ifremer.fr"
         wms_inspire_capabilities "url"
         wms_inspire_keyword "infoMapAccessService"
@@ -103,24 +105,24 @@ class MapfileBuilder:
       TYPE POLYGON
       DUMP TRUE
       STATUS ON      
-      EXTENT -180 -90 180 90
+      #EXTENT -180 -90 180 90
       UNITS DD
       
       CONNECTIONTYPE POSTGIS
       CONNECTION "host={dbHost} dbname={dbName} user={dbUsername}
                   password={dbPassword} port={dbPort}"
-      DATA "geom FROM (
-        SELECT nuts_id, activity_id, indicator_id, year, value, status, data_source, website
-        FROM indicator_values v, indicators i, activity a, nuts n
+      DATA "wkb_geometry FROM (
+        SELECT v.nuts_id, v.activity_id, v.indicator_id, year, value, status, data_source, website, wkb_geometry
+        FROM moses_indicator_values v, moses_indicators i, moses_activities a, nuts n
         WHERE
           v.indicator_id = i.id 
           AND v.activity_id = a.id 
-          AND v.nuts_id = n.id
-          AND n.level = '{level}'
+          AND v.nuts_id = n.nuts_id
+          AND n.levl_code = '{level}'
           AND i.id = '{indicator}'
           AND a.id = '{activity}'
-          AND v.year = {year})
-            AS RS USING UNIQUE n.id USING srid=4326"
+          AND v.year = '{year}')
+            AS RS USING UNIQUE nuts_id USING srid=4326"
 
       PROJECTION
           "init=epsg:4326"
@@ -128,14 +130,16 @@ class MapfileBuilder:
       
       TEMPLATE "queryable"
       METADATA
-        wms_title "{layerCode}"
+        wms_title "{layerTitle}"
         wms_name "{layerCode}"
+        wms_abstract "{layerAbstract}"
         wms_srs "EPSG:4326" 
         wms_connectiontimeout "120"
-        wms_server_version "1.1.1"
+        wms_server_version "1.3.0"
         wms_attribution_title "{projectName}"
-        wms_include_items "all"
-        wms_layer_group "{layerGroup}"        
+        wms_layer_group "/{layerGroup}"        
+        wms_group_title "/{layerGroup}"        
+        wms_group_abstract ""        
         gml_include_items "all"
         wms_metadataurl_format "text/xml"
         wms_metadataurl_type "TC211"
@@ -149,10 +153,10 @@ class MapfileBuilder:
   CATEGORY = """
       CLASS
         NAME "{label}"
-        EXPRESSION ({min} <= [value] AND [value] < {max})
+        EXPRESSION ({min} <= [value] AND [value] <{equal} {max})
         STYLE
           COLOR {color}
-          OUTLINECOLOR 0 0 0
+          OUTLINECOLOR 211 211 211
         END
       END
       """
@@ -161,21 +165,25 @@ class MapfileBuilder:
 END
   """
 
-  def __init__(self, file, projectName, projectDescription, projectUrl):
+  def __init__(self, file, projectName, projectDescription, projectUrl, wmsBaseUrl, debug):
     self.file = file
     self.projectName = projectName
     self.projectDescription = projectDescription
     self.projectUrl = projectUrl
+    self.wmsBaseUrl = wmsBaseUrl
+    self.debug = debug
 
   # Write the mapfile
   def writeHeader(self):
     mapfile = open(self.file, "w+")
     mapfile.write(self.HEADER.format(projectName=self.projectName,
                                      projectDescription=self.projectDescription,
-                                     projectUrl=self.projectUrl))
+                                     projectUrl=self.projectUrl,
+                                     debug=self.debug,
+                                     wmsBaseUrl=self.wmsBaseUrl))
     mapfile.close()
 
-  def writeLayer(self, layerCode, level, activity, indicator, year, categories, dbHost, dbPort, dbName, dbUsername,
+  def writeLayer(self, layerCode, layerTitle, layerAbstract, level, activity, indicator, year, categories, dbHost, dbPort, dbName, dbUsername,
                  dbPassword, dbSchema):
     """
 
@@ -184,14 +192,25 @@ END
     mapfile = open(self.file, "a+")
     categoriesConfig = ""
     for c in categories:
+      # Upper bound of last class must be equal to get the max value
+      equal = ''
+      if c == len(categories) - 1:
+        equal = '='
       categoriesConfig = categoriesConfig + self.CATEGORY.format(min=categories[c].min,
                                                                  max=categories[c].max,
+                                                                 equal=equal,
+                                                                 # equal=(c==5 ? '=' : ''),
                                                                  color=categories[c].color,
                                                                  label=categories[c].label)
 
+    groupTokens = layerCode.replace('.', '/').split('/')
+    groupTokens.pop()
+
     layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
+                                          layerTitle=layerTitle,
                                           level=level,
-                                          layerGroup=activity,
+                                          layerGroup='/'.join(groupTokens),
+                                          layerAbstract=layerAbstract,
                                           activity=activity,
                                           indicator=indicator,
                                           year=year,
@@ -213,13 +232,15 @@ END
     mapfile.close()
 
 
-# Constants
+
 class CONST:
   class LAYERNAME:
     activities = "moses_activities"
     indicators = "moses_indicators"
     ivalue = "moses_indicator_values"
     ivalueview = "moses_indicator_values_with_nuts"
+
+
 
 
 class MosesPublication:
@@ -237,11 +258,7 @@ class MosesPublication:
   # ['Spectral', 'RdYlGn', 'Set2', 'Accent', 'OrRd', 'Set1', 'PuBu', 'Set3', 'BuPu', 'Dark2', 'RdBu', 'Oranges', 'BuGn', 'PiYG', 'YlOrBr', 'YlGn', 'Reds', 'RdPu', 'Greens', 'PRGn', 'YlGnBu', 'RdYlBu', 'Paired', 'BrBG', 'Purples', 'Pastel2', 'Pastel1', 'GnBu', 'Greys', 'RdGy', 'YlOrRd', 'PuOr', 'PuRd', 'Blues', 'PuBuGn']
   colorScheme = 'Greys'
 
-  palette = QgsColorBrewerColorRamp(
-    colors=5,
-    schemeName=colorScheme,
-    inverted=True)
-  palette.loadPalette()
+  palette = QgsColorBrewerColorRamp.create({'colors': str(classificationNbOfClasses), 'schemeName': colorScheme})
 
   isBuildingMapfile = True
   isAddingLayerToQgisProject = True
@@ -301,7 +318,7 @@ class MosesPublication:
       lower = min + (interval * x)
       upper = lower + interval
       # TODO: Round values
-      color = palette.color(x).getRgb()
+      color = self.palette.color(x/nbOfClasses).getRgb()
       print(color)
       classes[x] = self.ThematicCategory(lower, upper, f'{lower} - {upper}', f'{color[0]} {color[1]} {color[2]}')
     return classes
@@ -327,6 +344,11 @@ class MosesPublication:
     projectName = "MOSES visualization service"
     projectDescription = "Publishing indicators by NUTS level on marine coastline"
     projectUrl = "http://mosesproject.eu/projectpartners/"
+    # wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
+    wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
+    debug = 'on'
+
+    map = '/data/dev/moses/moses.map'
 
     # for c in range(0, p.colors()):
     #  print(p.color(c).getRgb())
@@ -345,16 +367,21 @@ class MosesPublication:
       print('No years found.')
       return
 
-    mapBuilder = MapfileBuilder('/tmp/moses.map', projectName, projectDescription, projectUrl);
+    mapBuilder = MapfileBuilder(map, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
     mapBuilder.writeHeader()
 
     # removeAllMapLayers ?
 
-    nutsLevel = {1}
-    # nutsLevel = {1, 2, 3}
+    nutsLevels = {3}
+    # nutsLevel = {0, 1, 2, 3}
     # ... activities
     requestActivities = QgsFeatureRequest()
     requestActivities.addOrderBy("id")
+
+    uniqueActivities = lActivities.uniqueValues(lActivities.fields().indexOf("id"))
+    uniqueIndicators = lIndicators.uniqueValues(lIndicators.fields().indexOf("id"))
+    progressTotal = len(nutsLevels) * len(uniqueIndicators) * len(uniqueActivities) * len(years)
+    progressCurrent = 0
 
     # for a in lActivities.uniqueValues(lActivities.fields().indexOf("id")):
     for activityFeature in lActivities.getFeatures(requestActivities):
@@ -366,13 +393,17 @@ class MosesPublication:
       activityLabel = activityFeature.attribute('name')
       groupLayer = QgsProject.instance().layerTreeRoot().addGroup(f'{activityId}.{activityLabel}')
 
-      for indicator in lIndicators.uniqueValues(lIndicators.fields().indexOf("id")):
+
+      for indicator in uniqueIndicators:
         # TODO: Collect min/max value over all years ?
         for year in years:
-          for nutsLevel in nutsLevel:
+          for nutsLevel in nutsLevels:
+            progressCurrent = progressCurrent + 1
+            print(f"{progressCurrent:>15}/{progressTotal:<15} - {progressCurrent / progressTotal:.0%}")
+
             print(f"Processing {activityId} / {indicator} / {nutsLevel} / {year} ")
             # Check if any data for this combination
-            query = f'"activity_id" = \'{activityId}\' AND "indicator_id" = \'{indicator}\' AND "year" = \'{year}\''
+            query = f'"activity_id" = \'{activityId}\' AND "indicator_id" = \'{indicator}\' AND "year" = \'{year}\' AND "nuts_level" = \'{nutsLevel}\''
             request = QgsFeatureRequest().setFilterExpression(query)
             request.addOrderBy("value")
             selection = lValue.getFeatures(request)
@@ -384,8 +415,10 @@ class MosesPublication:
               ivMin = None
               ivMax = None
               counter = 0
+              listOfNutsIdsWithData = []
               for k in selection:
                 v = k.attribute("value")
+                listOfNutsIdsWithData.append(k.attribute("nuts_id"))
                 counter = counter + 1
                 if counter == 1:
                   ivMin = k.attribute("value")
@@ -404,16 +437,22 @@ class MosesPublication:
                 print(f"  * Classe #{c}. {classes[c].label}")
 
               #  NUTS3.311.V16110.2013
-              layerCode = f"NUTS{nutsLevel}.{activityId}.{indicator}.{year}"
+              layerCode = f"NUTS{nutsLevel}.{activityId.replace(',', '-')}.{indicator}.{year}"
+              print(f'Layer code is {layerCode}')
+              layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator} in {year}"
+
+              layerAbstract=f'{",".join(listOfNutsIdsWithData)} provides information on this indicator.' if len(listOfNutsIdsWithData) > 0 else ''
+
               if self.isBuildingMapfile:
-                mapBuilder.writeLayer(layerCode, nutsLevel, activityId, indicator, year, classes, self.dbHost,
+                mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
-              if self.isAddingLayerToQgisProject:
+              # if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
-                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, groupLayer)
-          break
-        break
-      break
+                #self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, groupLayer)
+                #return
+          #break
+        #break
+      #break
       # print (f'Processing activity \'{a}\' > indicator \'{i}\' > year \'{y}\' ...')
 
     mapBuilder.writeFooter()
