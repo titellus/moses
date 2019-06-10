@@ -32,6 +32,58 @@ List of views:
 
 Load data using OGR:
 
+### On Windows
+
+``` 
+
+cd C:\OSGeo4W-4\bin\
+
+
+set DATADIR=/data/project/2019/ifremer/moses/20190520
+set DBNAME=moses
+set DBUSER=www-data
+set DBPASSWORD=www-data
+set DBSERVER=localhost
+set DBPORT=5432
+set SHPENCODING=LATIN1
+
+
+SET PGCLIENTENCODING=%SHPENCODING%
+chcp 65001
+ogr2ogr.exe -f PostgreSQL ^
+ PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -lco GEOM_TYPE=geometry ^
+ -lco OVERWRITE=YES ^
+ -lco SCHEMA=moses ^
+ -overwrite ^
+ -nlt MULTIPOLYGON ^
+ -nln nuts ^
+ X:\data_QGIS\MOSES\data\WP4\NUTS\NUTS.shp
+
+ogr2ogr.exe -f PostgreSQL ^
+ PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -nln moses_activities_tmp -overwrite ^
+ moses_NACES.csv
+
+ogr2ogr.exe -f PostgreSQL ^
+ PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -nln moses_indicators_tmp -overwrite ^
+ moses_indicator.csv
+
+ogr2ogr.exe -f PostgreSQL ^
+ PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -nln moses_status_tmp -overwrite ^
+ moses_status.csv
+
+ogr2ogr.exe -f PostgreSQL ^
+ PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -nln moses_values_tmp -overwrite ^
+ moses_values.csv
+
+
+```
+### On linux
+
 ```
 DATADIR=/data/project/2019/ifremer/moses/20190520
 DBNAME=moses
@@ -168,6 +220,11 @@ CREATE OR REPLACE VIEW moses_indicator_values_with_nuts AS (
 SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
   FROM nuts n, moses_indicator_values i 
   WHERE n.nuts_id = i.nuts_id);
+  
+CREATE OR REPLACE MATERIALIZED VIEW moses_indicator_values_with_nuts_m AS (
+SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
+  FROM nuts n, moses_indicator_values i 
+  WHERE n.nuts_id = i.nuts_id) WITH DATA;
   
 CREATE OR REPLACE VIEW moses_indicator_level_1 AS (
 SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 

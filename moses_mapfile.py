@@ -3,6 +3,8 @@ from qgis.utils import *
 
 import re
 import os
+import time
+
 
 
 class MapfileBuilder:
@@ -256,12 +258,12 @@ class MosesPublication:
 
   # Define color map
   # ['Spectral', 'RdYlGn', 'Set2', 'Accent', 'OrRd', 'Set1', 'PuBu', 'Set3', 'BuPu', 'Dark2', 'RdBu', 'Oranges', 'BuGn', 'PiYG', 'YlOrBr', 'YlGn', 'Reds', 'RdPu', 'Greens', 'PRGn', 'YlGnBu', 'RdYlBu', 'Paired', 'BrBG', 'Purples', 'Pastel2', 'Pastel1', 'GnBu', 'Greys', 'RdGy', 'YlOrRd', 'PuOr', 'PuRd', 'Blues', 'PuBuGn']
-  colorScheme = 'Greys'
+  colorScheme = 'Oranges'
 
   palette = QgsColorBrewerColorRamp.create({'colors': str(classificationNbOfClasses), 'schemeName': colorScheme})
 
   isBuildingMapfile = True
-  isAddingLayerToQgisProject = True
+  isAddingLayerToQgisProject = False
 
   def addTable(self, tableName, schema=None, geometryColumn=None):
     """
@@ -329,19 +331,26 @@ class MosesPublication:
 
     :rtype: QgsVectorLayer
     """
+    i = qgis.utils.iface
     uri = QgsDataSourceUri()
-    print("Adding layer")
     uri.setConnection(self.dbHost, self.dbPort, self.dbName, self.dbUsername, self.dbPassword)
     # Add filter to global view / Provider filter
-    filter = f'"year" = \'{y}\' AND "levl_code" = \'{n}\'AND "activity_id" = \'{a}\' AND "indicator_id" = \'{i}\''
+    filter = f'"year" = \'{y}\' AND "levl_code" = \'{n}\' AND "activity_id" = \'{a}\' AND "indicator_id" = \'{i}\''
     uri.setDataSource(self.dbSchema, CONST.LAYERNAME.ivalueview, "wkb_geometry", filter)
-    vlayer = QgsVectorLayer(uri.uri(False), CONST.LAYERNAME.ivalueview, "postgres")
-    QgsProject.instance().addMapLayer(vlayer)
+    # uri.setDataSource(self.dbSchema, "moses_indicator_values_with_nuts_m", "wkb_geometry", filter)
+    vlayer = QgsVectorLayer(uri.uri(False), f'{layerCode}', "postgres")
+    # group.addLayer(vlayer)
+    # https://gis.stackexchange.com/questions/325236/qgis-3-crashes-when-adding-a-postgis-view-as-a-map-layer
+    # QgsProject.instance().addMapLayer(vlayer)
+    inst = QgsProject.instance()
+    inst.addMapLayer(vlayer)
+    legend = i.legendInterface()
+    legend.setLayerVisible(vlayer, False)
     return vlayer
 
   def __init__(self):
     # TODO: Move to property file
-    projectName = "MOSES visualization service"
+    projectName = "MOSES project data visualization service"
     projectDescription = "Publishing indicators by NUTS level on marine coastline"
     projectUrl = "http://mosesproject.eu/projectpartners/"
     # wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
@@ -350,9 +359,8 @@ class MosesPublication:
 
     map = '/data/dev/moses/moses.map'
 
-    # for c in range(0, p.colors()):
-    #  print(p.color(c).getRgb())
-    # return
+    start_time = time.time()
+
     # Load layers on map
     # https://gis.stackexchange.com/questions/277040/load-a-postgis-layer-into-a-qgis-map
     lValue = self.getTable(CONST.LAYERNAME.ivalue)
@@ -382,6 +390,7 @@ class MosesPublication:
     uniqueIndicators = lIndicators.uniqueValues(lIndicators.fields().indexOf("id"))
     progressTotal = len(nutsLevels) * len(uniqueIndicators) * len(uniqueActivities) * len(years)
     progressCurrent = 0
+    numberOfLayers = 0
 
     # for a in lActivities.uniqueValues(lActivities.fields().indexOf("id")):
     for activityFeature in lActivities.getFeatures(requestActivities):
@@ -391,7 +400,11 @@ class MosesPublication:
       # layerTreeRoot
       activityId = activityFeature.attribute('id')
       activityLabel = activityFeature.attribute('name')
-      groupLayer = QgsProject.instance().layerTreeRoot().addGroup(f'{activityId}.{activityLabel}')
+      activityGroupLayerName = f'{activityId}.{activityLabel}'
+
+      activityGroupLayer = QgsProject.instance().layerTreeRoot().findGroup(activityGroupLayerName)
+      if activityGroupLayer is None:
+        activityGroupLayer = QgsProject.instance().layerTreeRoot().addGroup(activityGroupLayerName)
 
 
       for indicator in uniqueIndicators:
@@ -411,6 +424,16 @@ class MosesPublication:
             selection = lValue.getFeatures(request)
 
             if nbFeatures > 0:
+              indicatorGroupLayerName = indicator
+              indicatorGroupLayer = activityGroupLayer.findGroup(indicatorGroupLayerName)
+              if indicatorGroupLayer  is None:
+                  indicatorGroupLayer = activityGroupLayer.addGroup(indicatorGroupLayerName)
+
+              nutsGroupLayerName = f'Nuts{nutsLevel}'
+              nutsGroupLayer = indicatorGroupLayer.findGroup(nutsGroupLayerName)
+              if nutsGroupLayer is None:
+                  nutsGroupLayer = indicatorGroupLayer.addGroup(nutsGroupLayerName)
+
               # Collect min/max value
               ivMin = None
               ivMax = None
@@ -437,7 +460,7 @@ class MosesPublication:
                 print(f"  * Classe #{c}. {classes[c].label}")
 
               #  NUTS3.311.V16110.2013
-              layerCode = f"NUTS{nutsLevel}.{activityId.replace(',', '-')}.{indicator}.{year}"
+              layerCode = f"{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}.{year}"
               print(f'Layer code is {layerCode}')
               layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator} in {year}"
 
@@ -446,16 +469,19 @@ class MosesPublication:
               if self.isBuildingMapfile:
                 mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
-              # if self.isAddingLayerToQgisProject:
+              if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
-                #self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, groupLayer)
-                #return
+                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer)
+              numberOfLayers = numberOfLayers + 1
           #break
         #break
       #break
       # print (f'Processing activity \'{a}\' > indicator \'{i}\' > year \'{y}\' ...')
 
     mapBuilder.writeFooter()
+    elapsed_time = time.time() - start_time
+    print( 'Execution time: %.3f' % (elapsed_time))
+    print(f"Number of layers added to mapfile: {numberOfLayers}.")
 
 
 MosesPublication();
