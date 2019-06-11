@@ -221,7 +221,7 @@ SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry
   FROM nuts n, moses_indicator_values i 
   WHERE n.nuts_id = i.nuts_id);
   
-CREATE OR REPLACE MATERIALIZED VIEW moses_indicator_values_with_nuts_m AS (
+CREATE TABLE moses_indicator_values_with_nuts_m AS (
 SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
   FROM nuts n, moses_indicator_values i 
   WHERE n.nuts_id = i.nuts_id) WITH DATA;

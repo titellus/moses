@@ -1,5 +1,5 @@
-from qgis.core import *
 from qgis.utils import *
+from qgis.core import *
 
 import re
 import os
@@ -263,7 +263,7 @@ class MosesPublication:
   palette = QgsColorBrewerColorRamp.create({'colors': str(classificationNbOfClasses), 'schemeName': colorScheme})
 
   isBuildingMapfile = True
-  isAddingLayerToQgisProject = False
+  isAddingLayerToQgisProject = True
 
   def addTable(self, tableName, schema=None, geometryColumn=None):
     """
@@ -325,27 +325,44 @@ class MosesPublication:
       classes[x] = self.ThematicCategory(lower, upper, f'{lower} - {upper}', f'{color[0]} {color[1]} {color[2]}')
     return classes
 
-  def addFilteredLayer(self, layerCode, n, a, i, y, group):
+  def addFilteredLayer(self, layerCode, n, a, i, y, group, nbOfClasses):
     """
     Add layer with indicator values for a specific level and year.
 
     :rtype: QgsVectorLayer
     """
-    i = qgis.utils.iface
+    layer = QgsProject.instance().mapLayersByName(layerCode)
+    if layer is not None and len(layer) > 0:
+        QgsProject.instance().removeMapLayers([layer[0].id()])
+
     uri = QgsDataSourceUri()
     uri.setConnection(self.dbHost, self.dbPort, self.dbName, self.dbUsername, self.dbPassword)
     # Add filter to global view / Provider filter
     filter = f'"year" = \'{y}\' AND "levl_code" = \'{n}\' AND "activity_id" = \'{a}\' AND "indicator_id" = \'{i}\''
-    uri.setDataSource(self.dbSchema, CONST.LAYERNAME.ivalueview, "wkb_geometry", filter)
-    # uri.setDataSource(self.dbSchema, "moses_indicator_values_with_nuts_m", "wkb_geometry", filter)
+    # uri.setDataSource(self.dbSchema, CONST.LAYERNAME.ivalueview, "wkb_geometry", filter)
+    uri.setDataSource(self.dbSchema, "moses_indicator_values_with_nuts_m", "wkb_geometry", filter)
     vlayer = QgsVectorLayer(uri.uri(False), f'{layerCode}', "postgres")
-    # group.addLayer(vlayer)
+
     # https://gis.stackexchange.com/questions/325236/qgis-3-crashes-when-adding-a-postgis-view-as-a-map-layer
-    # QgsProject.instance().addMapLayer(vlayer)
-    inst = QgsProject.instance()
-    inst.addMapLayer(vlayer)
-    legend = i.legendInterface()
-    legend.setLayerVisible(vlayer, False)
+    QgsProject.instance().addMapLayer(vlayer)
+    QgsProject.instance().layerTreeRoot().findLayer(vlayer.id()).setItemVisibilityChecked(False)
+
+    renderer = QgsGraduatedSymbolRenderer('value', [])
+    # renderer.setClassAttribute('value')
+    renderer.setMode(QgsGraduatedSymbolRenderer.EqualInterval)
+    renderer.updateClasses(vlayer,QgsGraduatedSymbolRenderer.EqualInterval, nbOfClasses)
+    style = QgsStyle().defaultStyle()
+    # ramp = style.addColorRamp("mosesPalette", self.palette)
+    
+    renderer.updateColorRamp(self.palette)
+    vlayer.setRenderer(renderer)
+
+    root = QgsProject.instance().layerTreeRoot()
+    layer = root.findLayer(vlayer.id())
+    clone = layer.clone()
+    group.insertChildNode(-1, clone)
+    root.removeChildNode(layer)
+
     return vlayer
 
   def __init__(self):
@@ -380,8 +397,7 @@ class MosesPublication:
 
     # removeAllMapLayers ?
 
-    nutsLevels = {3}
-    # nutsLevel = {0, 1, 2, 3}
+    nutsLevels = {0, 1, 2, 3}
     # ... activities
     requestActivities = QgsFeatureRequest()
     requestActivities.addOrderBy("id")
@@ -471,7 +487,7 @@ class MosesPublication:
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
               if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
-                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer)
+                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer, self.classificationNbOfClasses)
               numberOfLayers = numberOfLayers + 1
           #break
         #break
