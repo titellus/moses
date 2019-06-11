@@ -1,5 +1,15 @@
 # MOSES data publication as OGC services
 
+This application analyze Moses data provided in PostGIS and build the corresponding QGIS project and Mapserver mapfile.
+
+QGIS project contains group for each activity, indicator and NUTS level and one layer per year:
+
+![QGIS legend](qgislegend.png)
+
+Same in the view service capabilities:
+
+![View service capabilities](qgisgetcapabilities.png)
+
 
 ## Datasets
 
