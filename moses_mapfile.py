@@ -112,10 +112,10 @@ class MapfileBuilder:
       
       CONNECTIONTYPE POSTGIS
       CONNECTION "host={dbHost} dbname={dbName} user={dbUsername}
-                  password={dbPassword} port={dbPort}"
+                  password='{dbPassword}' port={dbPort}"
       DATA "wkb_geometry FROM (
         SELECT v.nuts_id, v.activity_id, v.indicator_id, year, value, status, data_source, website, wkb_geometry
-        FROM moses_indicator_values v, moses_indicators i, moses_activities a, nuts n
+        FROM {dbSchema}.moses_indicator_values v, {dbSchema}.moses_indicators i, {dbSchema}.moses_activities a, {dbSchema}.nuts n
         WHERE
           v.indicator_id = i.id 
           AND v.activity_id = a.id 
@@ -252,6 +252,13 @@ class MosesPublication:
   dbUsername = 'www-data'
   dbPassword = 'www-data'
   dbSchema = 'public'
+  # dbName = 'moses'
+  # dbHost = 'vpostgres2val.ifremer.fr'
+  # dbPort = '5432'
+  # dbUsername = 'moses_usr'
+  # dbPassword = 'The ...'
+  # dbSchema = 'moses'
+
 
   classificationMethod = "equalInterval"
   classificationNbOfClasses = 5
@@ -374,6 +381,7 @@ class MosesPublication:
     wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
     debug = 'on'
 
+    #map = 'O:/wms/moses.map'
     map = '/data/dev/moses/moses.map'
 
     start_time = time.time()
@@ -397,7 +405,8 @@ class MosesPublication:
 
     # removeAllMapLayers ?
 
-    nutsLevels = {0, 1, 2, 3}
+    nutsLevels = {1}
+    # nutsLevels = {0, 1, 2, 3}
     # ... activities
     requestActivities = QgsFeatureRequest()
     requestActivities.addOrderBy("id")

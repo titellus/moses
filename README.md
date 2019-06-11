@@ -179,7 +179,7 @@ CREATE TABLE moses_activities
   name character varying(254)
 );
 
-INSERT INTO moses_activities SELECT nace_id, nace_section, nace_div, nace_descr FROM moses_activities_tmp WHERE nace_id IS NOT NULL AND nace_id != '';
+INSERT INTO moses_activities SELECT replace(nace_id, '.', ','), nace_section, nace_div, nace_descr FROM moses_activities_tmp WHERE nace_id IS NOT NULL AND nace_id != '';
 
 
 -- Status
