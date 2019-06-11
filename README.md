@@ -46,7 +46,7 @@ Load data using OGR:
 
 ``` 
 
-cd C:\OSGeo4W-4\bin\
+cd C:\OSGeo4W64\bin\
 
 
 set DATADIR=/data/project/2019/ifremer/moses/20190520
@@ -72,23 +72,31 @@ ogr2ogr.exe -f PostgreSQL ^
 
 ogr2ogr.exe -f PostgreSQL ^
  PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -lco SCHEMA=moses ^
  -nln moses_activities_tmp -overwrite ^
- moses_NACES.csv
+ -lco OVERWRITE=YES ^
+ X:\data_QGIS\MOSES\data\WP4\moses_NACES.csv
 
 ogr2ogr.exe -f PostgreSQL ^
  PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -lco SCHEMA=moses ^
  -nln moses_indicators_tmp -overwrite ^
- moses_indicator.csv
+ -lco OVERWRITE=YES ^
+ X:\data_QGIS\MOSES\data\WP4\moses_indicator.csv
 
 ogr2ogr.exe -f PostgreSQL ^
  PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -lco SCHEMA=moses ^
  -nln moses_status_tmp -overwrite ^
- moses_status.csv
+ -lco OVERWRITE=YES ^
+ X:\data_QGIS\MOSES\data\WP4\moses_status.csv
 
 ogr2ogr.exe -f PostgreSQL ^
  PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ -lco SCHEMA=moses ^
  -nln moses_values_tmp -overwrite ^
- moses_values.csv
+ -lco OVERWRITE=YES ^
+ X:\data_QGIS\MOSES\data\WP4\moses_values.csv
 
 
 ```
@@ -148,10 +156,14 @@ PGCLIENTENCODING=$SHPENCODING ogr2ogr -f PostgreSQL \
 DB script to create index, views and reorganize indicator data:
 
 ```
+
+set search_path=moses;
+
 -- Create index and views on Nuts data
 CREATE INDEX nuts_levl_code_idx ON nuts (levl_code);
 ALTER TABLE nuts ADD CONSTRAINT nuts_id_uk UNIQUE (nuts_id);
 CREATE INDEX nuts_levl_code_idx ON nuts (nuts_id);
+CREATE OR REPLACE VIEW nuts_level_0 AS SELECT * FROM nuts WHERE levl_code = 0;
 CREATE OR REPLACE VIEW nuts_level_1 AS SELECT * FROM nuts WHERE levl_code = 1;
 CREATE OR REPLACE VIEW nuts_level_2 AS SELECT * FROM nuts WHERE levl_code = 2;
 CREATE OR REPLACE VIEW nuts_level_3 AS SELECT * FROM nuts WHERE levl_code = 3;
@@ -186,12 +198,11 @@ DROP TABLE IF EXISTS moses_indicators CASCADE;
 CREATE TABLE moses_indicators
 (
   id character varying(10) PRIMARY KEY,
-  activity_id character varying(10) REFERENCES moses_activities(id),
   name character varying(100),
   unit character varying(100)
 );
 
-INSERT INTO moses_indicators SELECT ind_id, null, ind_name, ind_unit FROM moses_indicators_tmp WHERE ind_id IS NOT NULL AND ind_id != '';
+INSERT INTO moses_indicators SELECT ind_id, ind_name, ind_unit FROM moses_indicators_tmp WHERE ind_id IS NOT NULL AND ind_id != '';
 
 
 
