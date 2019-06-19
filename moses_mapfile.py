@@ -6,6 +6,74 @@ import os
 import time
 
 
+class ContextBuilder:
+    HEADER = """<ows-context:OWSContext xmlns:ows-context="http://www.opengis.net/ows-context" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ows="http://www.opengis.net/ows" version="0.3.1" id="ows-context-ex-1-v3">
+  <ows-context:General>
+    <ows:BoundingBox crs="EPSG:3857">
+      <ows:LowerCorner>-5274429.416442219 3348478.9630677192</ows:LowerCorner>
+      <ows:UpperCorner>4118152.619240239 8289368.471421512</ows:UpperCorner>
+    </ows:BoundingBox>
+  </ows-context:General>
+  <ows-context:ResourceList>
+  <ows-context:Layer name="{type=wmts,name=sextant}" group="Background layers" hidden="true" opacity="1">
+      <ows:Title>Sextant</ows:Title>
+      <ows-context:Server service="urn:ogc:serviceType:WMS">
+        <ows-context:OnlineResource xlink:href="https://sextant.ifremer.fr/geowebcache/service/wmts?service=WMTS&amp;request=GetCapabilities&amp;version=1.0.0"/>
+      </ows-context:Server>
+    </ows-context:Layer>
+    <ows-context:Layer name="{type=wmts,name=Ocean_Basemap}" group="Background layers" hidden="false" opacity="1">
+      <ows:Title>Base Map</ows:Title>
+      <ows-context:Server service="urn:ogc:serviceType:WMS">
+        <ows-context:OnlineResource xlink:href="http://server.arcgisonline.com/arcgis/rest/services/Ocean_Basemap/MapServer/WMTS/1.0.0/WMTSCapabilities.xml"/>
+      </ows-context:Server>
+    </ows-context:Layer>
+    <ows-context:Layer name="{type=bing_aerial}" group="Background layers" hidden="true" opacity="1">
+      <ows:Title>Bing Aerial</ows:Title>
+    </ows-context:Layer>
+    <ows-context:Layer name="{type=osm}" group="Background layers" hidden="true" opacity="1">
+      <ows:Title>OpenStreetMap</ows:Title>
+    </ows-context:Layer>"""
+
+    LAYER = """<ows-context:Layer name="{layerCode}" group="/{layerGroup}" hidden="true" opacity="1">
+      <ows-context:Server service="urn:ogc:serviceType:WMS" version="1.3.0">
+        <ows-context:OnlineResource xlink:href="{wmsUrl}"/>
+      </ows-context:Server>
+      <ows-context:Extension>
+        <ows-context:MetadataUrlList/>
+        <ows-context:QIList/>
+      </ows-context:Extension>
+    </ows-context:Layer>"""
+
+    FOOTER = """
+  </ows-context:ResourceList>
+</ows-context:OWSContext>"""
+
+
+    def __init__(self, file):
+        self.file = file
+
+    def writeHeader(self):
+        contextFile = open(self.file, "w+")
+        contextFile.write(self.HEADER)
+        contextFile.close()
+
+    def writeLayer(self, layerCode, wmsUrl):
+        contextFile = open(self.file, "a+")
+
+        groupTokens = layerCode.replace('.', '/').split('/')
+        groupTokens.pop()
+
+        layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
+                                              layerGroup='/'.join(groupTokens),
+                                              wmsUrl=wmsUrl)
+        contextFile.write(layerConfig)
+        contextFile.close()
+
+    def writeFooter(self):
+        contextFile = open(self.file, "a+")
+        contextFile.write(f"" + self.FOOTER)
+        contextFile.close()
+
 
 class MapfileBuilder:
   HEADER = """MAP
@@ -139,6 +207,7 @@ class MapfileBuilder:
         wms_connectiontimeout "120"
         wms_server_version "1.3.0"
         wms_attribution_title "{projectName}"
+        wms_attribution_onlineresource "http://mosesproject.eu/"
         wms_layer_group "/{layerGroup}"        
         wms_group_title "/{layerGroup}"        
         wms_group_abstract ""        
@@ -376,13 +445,14 @@ class MosesPublication:
     # TODO: Move to property file
     projectName = "MOSES project data visualization service"
     projectDescription = "Publishing indicators by NUTS level on marine coastline"
-    projectUrl = "http://mosesproject.eu/projectpartners/"
+    projectUrl = "http://mosesproject.eu/"
     # wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
     wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
     debug = 'on'
 
     #map = 'O:/wms/moses.map'
     map = '/data/dev/moses/moses.map'
+    context = '/data/dev/moses/moses.ows'
 
     start_time = time.time()
 
@@ -400,6 +470,8 @@ class MosesPublication:
       print('No years found.')
       return
 
+    contextBuilder = ContextBuilder(context)
+    contextBuilder.writeHeader()
     mapBuilder = MapfileBuilder(map, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
     mapBuilder.writeHeader()
 
@@ -494,6 +566,9 @@ class MosesPublication:
               if self.isBuildingMapfile:
                 mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
+                contextBuilder.writeLayer(layerCode, wmsBaseUrl)
+
+
               if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
                 self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer, self.classificationNbOfClasses)
@@ -504,6 +579,7 @@ class MosesPublication:
       # print (f'Processing activity \'{a}\' > indicator \'{i}\' > year \'{y}\' ...')
 
     mapBuilder.writeFooter()
+    contextBuilder.writeFooter()
     elapsed_time = time.time() - start_time
     print( 'Execution time: %.3f' % (elapsed_time))
     print(f"Number of layers added to mapfile: {numberOfLayers}.")
