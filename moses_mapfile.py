@@ -403,7 +403,7 @@ class MosesPublication:
       classes[x] = self.ThematicCategory(lower, upper, f'{lower} - {upper}', f'{color[0]} {color[1]} {color[2]}')
     return classes
 
-  def addFilteredLayer(self, layerCode, n, a, i, y, group, nbOfClasses):
+  def addFilteredLayer(self, layerCode, n, a, i, y, group, nbOfClasses, min, max):
     """
     Add layer with indicator values for a specific level and year.
 
@@ -428,6 +428,10 @@ class MosesPublication:
     renderer = QgsGraduatedSymbolRenderer('value', [])
     # renderer.setClassAttribute('value')
     renderer.setMode(QgsGraduatedSymbolRenderer.EqualInterval)
+
+    if min == max:
+        nbOfClasses = 1
+
     renderer.updateClasses(vlayer,QgsGraduatedSymbolRenderer.EqualInterval, nbOfClasses)
     style = QgsStyle().defaultStyle()
     # ramp = style.addColorRamp("mosesPalette", self.palette)
@@ -454,8 +458,8 @@ class MosesPublication:
 
     map = 'O:/wms/moses.map'
     #map = '/data/dev/moses/moses.map'
-    context = 'X:/moses/moses.xml'
-    #context = '/data/dev/moses/moses.ows'
+    context = 'V:/moses/moses.xml'
+    #context = '/data/dev/moses/moses.xml'
     
     start_time = time.time()
 
@@ -475,6 +479,7 @@ class MosesPublication:
 
     contextBuilder = ContextBuilder(context)
     contextBuilder.writeHeader()
+    contextBuilderByActivity = {}
     mapBuilder = MapfileBuilder(map, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
     mapBuilder.writeHeader()
 
@@ -501,6 +506,9 @@ class MosesPublication:
       activityId = activityFeature.attribute('id')
       activityLabel = activityFeature.attribute('name')
       activityGroupLayerName = f'{activityId}.{activityLabel}'
+
+      contextBuilderByActivity[activityId] = ContextBuilder(context.replace('.xml', f'{activityId.replace(",", "")}.xml'))
+      contextBuilderByActivity[activityId].writeHeader();
 
       activityGroupLayer = QgsProject.instance().layerTreeRoot().findGroup(activityGroupLayerName)
       if activityGroupLayer is None:
@@ -570,15 +578,17 @@ class MosesPublication:
                 mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
                 contextBuilder.writeLayer(layerCode, wmsBaseUrl)
+                contextBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl)
 
 
               if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
-                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer, self.classificationNbOfClasses)
+                self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer, self.classificationNbOfClasses, ivMin, ivMax)
               numberOfLayers = numberOfLayers + 1
           #break
         #break
       #break
+      contextBuilderByActivity[activityId].writeFooter();
       # print (f'Processing activity \'{a}\' > indicator \'{i}\' > year \'{y}\' ...')
 
     mapBuilder.writeFooter()
