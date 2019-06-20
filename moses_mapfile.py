@@ -317,18 +317,18 @@ class CONST:
 
 
 class MosesPublication:
-  dbName = 'moses'
-  dbHost = 'localhost'
-  dbPort = '5432'
-  dbUsername = 'www-data'
-  dbPassword = 'www-data'
-  dbSchema = 'public'
   # dbName = 'moses'
-  # dbHost = 'vpostgres2val.ifremer.fr'
+  # dbHost = 'localhost'
   # dbPort = '5432'
-  # dbUsername = 'moses_usr'
-  # dbPassword = 'The ...'
-  # dbSchema = 'moses'
+  # dbUsername = 'www-data'
+  # dbPassword = 'www-data'
+  # dbSchema = 'public'
+  dbName = 'moses'
+  dbHost = 'vpostgres2.ifremer.fr'
+  dbPort = '5432'
+  dbUsername = 'moses_usr'
+  dbPassword = 'The ...'
+  dbSchema = 'moses'
 
 
   classificationMethod = "equalInterval"
