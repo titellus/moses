@@ -62,6 +62,7 @@ class ContextBuilder:
 
         groupTokens = layerCode.replace('.', '/').split('/')
         groupTokens.pop()
+        groupTokens.pop(0)
 
         layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                               layerGroup='/'.join(groupTokens),
@@ -276,6 +277,7 @@ END
 
     groupTokens = layerCode.replace('.', '/').split('/')
     groupTokens.pop()
+    groupTokens.pop(0)
 
     layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                           layerTitle=layerTitle,
@@ -558,7 +560,7 @@ class MosesPublication:
                 print(f"  * Classe #{c}. {classes[c].label}")
 
               #  NUTS3.311.V16110.2013
-              layerCode = f"{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}.{year}"
+              layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}.{year}"
               print(f'Layer code is {layerCode}')
               layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator} in {year}"
 
