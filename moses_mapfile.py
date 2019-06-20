@@ -446,14 +446,15 @@ class MosesPublication:
     projectName = "MOSES project data visualization service"
     projectDescription = "Publishing indicators by NUTS level on marine coastline"
     projectUrl = "http://mosesproject.eu/"
-    # wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
-    wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
+    wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
+    #wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
     debug = 'on'
 
-    #map = 'O:/wms/moses.map'
-    map = '/data/dev/moses/moses.map'
-    context = '/data/dev/moses/moses.ows'
-
+    map = 'O:/wms/moses.map'
+    #map = '/data/dev/moses/moses.map'
+    context = 'X:/moses/moses.xml'
+    #context = '/data/dev/moses/moses.ows'
+    
     start_time = time.time()
 
     # Load layers on map
@@ -477,8 +478,8 @@ class MosesPublication:
 
     # removeAllMapLayers ?
 
-    nutsLevels = {1}
-    # nutsLevels = {0, 1, 2, 3}
+    # nutsLevels = {1}
+    nutsLevels = {0, 1, 2, 3}
     # ... activities
     requestActivities = QgsFeatureRequest()
     requestActivities.addOrderBy("id")
