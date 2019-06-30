@@ -57,12 +57,14 @@ class ContextBuilder:
         contextFile.write(self.HEADER)
         contextFile.close()
 
-    def writeLayer(self, layerCode, wmsUrl):
+    def writeLayer(self, layerCode, wmsUrl, activityFullLabel, indicatorFullLabel):
         contextFile = open(self.file, "a+")
 
         groupTokens = layerCode.replace('.', '/').split('/')
         groupTokens.pop()
         groupTokens.pop(0)
+        groupTokens[0] = activityFullLabel
+        groupTokens[1] = indicatorFullLabel
 
         layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                               layerGroup='/'.join(groupTokens),
@@ -192,7 +194,7 @@ class MapfileBuilder:
           AND n.levl_code = '{level}'
           AND i.id = '{indicator}'
           AND a.id = '{activity}'
-          AND v.year = '{year}')
+          AND v.year in ({year}))
             AS RS USING UNIQUE nuts_id USING srid=4326"
 
       PROJECTION
@@ -215,11 +217,18 @@ class MapfileBuilder:
         gml_include_items "all"
         wms_metadataurl_format "text/xml"
         wms_metadataurl_type "TC211"
-        wms_metadataurl_href "{layerMetadataUrl}" 
+        wms_metadataurl_href "{layerMetadataUrl}"
+        {wmsTimeConfig} 
       END
       
       {categories}
     END
+  """
+
+  TIME = """
+        wms_timeextent "2013,2014,2015"
+        wms_timeitem "year"
+        wms_timeformat "YYYY"
   """
 
   CATEGORY = """
@@ -256,7 +265,7 @@ END
     mapfile.close()
 
   def writeLayer(self, layerCode, layerTitle, layerAbstract, level, activity, indicator, year, categories, dbHost, dbPort, dbName, dbUsername,
-                 dbPassword, dbSchema):
+                 dbPassword, dbSchema, activityFullLabel, indicatorFullLabel, asTime = False):
     """
 
     :rtype: object
@@ -278,6 +287,15 @@ END
     groupTokens = layerCode.replace('.', '/').split('/')
     groupTokens.pop()
     groupTokens.pop(0)
+    groupTokens[0] = activityFullLabel
+    groupTokens[1] = indicatorFullLabel
+
+    if asTime:
+        wmsTimeConfig = self.TIME
+        yearList = "'2013', '2014', '2015'"
+    else:
+        wmsTimeConfig = ''
+        yearList = f"'{year}'"
 
     layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                           layerTitle=layerTitle,
@@ -286,7 +304,7 @@ END
                                           layerAbstract=layerAbstract,
                                           activity=activity,
                                           indicator=indicator,
-                                          year=year,
+                                          year=yearList,
                                           projectName=self.projectName,
                                           layerMetadataUrl="",
                                           dbHost=dbHost,
@@ -295,7 +313,8 @@ END
                                           dbUsername=dbUsername,
                                           dbPassword=dbPassword,
                                           dbSchema=dbSchema,
-                                          categories=categoriesConfig)
+                                          categories=categoriesConfig,
+                                          wmsTimeConfig=wmsTimeConfig)
     mapfile.write(layerConfig)
     mapfile.close()
 
@@ -330,6 +349,8 @@ class MosesPublication:
   dbPassword = 'The ...'
   dbSchema = 'moses'
 
+  # wmsTimeLayerMode = False
+  wmsTimeLayerMode = True
 
   classificationMethod = "equalInterval"
   classificationNbOfClasses = 5
@@ -359,7 +380,7 @@ class MosesPublication:
   def getTable(self, tableName):
     """
     Get a table and exit if not found.
-    
+
     :rtype: QgsVectorLayer
     """
     layers = QgsProject.instance().mapLayersByName(tableName)
@@ -435,7 +456,7 @@ class MosesPublication:
     renderer.updateClasses(vlayer,QgsGraduatedSymbolRenderer.EqualInterval, nbOfClasses)
     style = QgsStyle().defaultStyle()
     # ramp = style.addColorRamp("mosesPalette", self.palette)
-    
+
     renderer.updateColorRamp(self.palette)
     vlayer.setRenderer(renderer)
 
@@ -457,10 +478,14 @@ class MosesPublication:
     debug = 'on'
 
     map = 'O:/wms/moses.map'
-    #map = '/data/dev/moses/moses.map'
+    maptime = 'O:/wms/moses.map'
     context = 'V:/moses/moses.xml'
-    #context = '/data/dev/moses/moses.xml'
-    
+    contexttime = 'V:/moses/moses-time.xml'
+    # map = '/data/dev/moses/moses.map'
+    # maptime = '/data/dev/moses/moses-time.map'
+    # context = '/data/dev/moses/moses.xml'
+    # contexttime = '/data/dev/moses/moses-time.xml'
+
     start_time = time.time()
 
     # Load layers on map
@@ -480,8 +505,14 @@ class MosesPublication:
     contextBuilder = ContextBuilder(context)
     contextBuilder.writeHeader()
     contextBuilderByActivity = {}
+    if self.wmsTimeLayerMode:
+        contextTimeBuilder = ContextBuilder(contexttime)
+        contextTimeBuilder.writeHeader()
+        contextTimeBuilderByActivity = {}
     mapBuilder = MapfileBuilder(map, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
     mapBuilder.writeHeader()
+    mapTimeBuilder = MapfileBuilder(maptime, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
+    mapTimeBuilder.writeHeader()
 
     # removeAllMapLayers ?
 
@@ -505,10 +536,15 @@ class MosesPublication:
       # layerTreeRoot
       activityId = activityFeature.attribute('id')
       activityLabel = activityFeature.attribute('name')
-      activityGroupLayerName = f'{activityId}.{activityLabel}'
+      activityFullLabel = f'{activityLabel} (NACE code: {activityId})'
+      activityGroupLayerName = f'{activityFullLabel}'
+      # activityGroupLayerName = f'{activityId}.{activityLabel}'
 
       contextBuilderByActivity[activityId] = ContextBuilder(context.replace('.xml', f'{activityId.replace(",", "")}.xml'))
       contextBuilderByActivity[activityId].writeHeader();
+      if self.wmsTimeLayerMode:
+          contextTimeBuilderByActivity[activityId] = ContextBuilder(context.replace('.xml', f'{activityId.replace(",", "")}-time.xml'))
+          contextTimeBuilderByActivity[activityId].writeHeader();
 
       activityGroupLayer = QgsProject.instance().layerTreeRoot().findGroup(activityGroupLayerName)
       if activityGroupLayer is None:
@@ -516,9 +552,16 @@ class MosesPublication:
 
 
       for indicator in uniqueIndicators:
+        indicatorFullLabel = self.getIndicatorFullLabel(indicator, lIndicators)
+
         # TODO: Collect min/max value over all years ?
-        for year in years:
-          for nutsLevel in nutsLevels:
+        for nutsLevel in nutsLevels:
+          # TODO: Use infinity
+          ivMinForAllYears = 9999999
+          ivMaxForAllYears = -9999999
+          counterForAllYears = 0
+
+          for year in years:
             progressCurrent = progressCurrent + 1
             print(f"{progressCurrent:>15}/{progressTotal:<15} - {progressCurrent / progressTotal:.0%}")
 
@@ -532,7 +575,7 @@ class MosesPublication:
             selection = lValue.getFeatures(request)
 
             if nbFeatures > 0:
-              indicatorGroupLayerName = indicator
+              indicatorGroupLayerName = indicatorFullLabel
               indicatorGroupLayer = activityGroupLayer.findGroup(indicatorGroupLayerName)
               if indicatorGroupLayer  is None:
                   indicatorGroupLayer = activityGroupLayer.addGroup(indicatorGroupLayerName)
@@ -551,10 +594,13 @@ class MosesPublication:
                 v = k.attribute("value")
                 listOfNutsIdsWithData.append(k.attribute("nuts_id"))
                 counter = counter + 1
+                counterForAllYears = counterForAllYears + 1
                 if counter == 1:
                   ivMin = k.attribute("value")
+                  ivMinForAllYears=min(ivMin, ivMinForAllYears)
                   # print(k.attribute("year"))
                 ivMax = k.attribute("value")
+                ivMaxForAllYears=max(ivMax, ivMaxForAllYears)
 
               # print("Found {0}".format(len(list(selection))))
               # print(selection)
@@ -576,26 +622,59 @@ class MosesPublication:
 
               if self.isBuildingMapfile:
                 mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
-                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema)
-                contextBuilder.writeLayer(layerCode, wmsBaseUrl)
-                contextBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl)
+                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel)
+                contextBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+                contextBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
 
 
               if self.isAddingLayerToQgisProject:
                 # TODO: Add layer with proper SQL filter to current project
                 self.addFilteredLayer(layerCode, nutsLevel, activityId, indicator, year, nutsGroupLayer, self.classificationNbOfClasses, ivMin, ivMax)
               numberOfLayers = numberOfLayers + 1
-          #break
+
+
+        # Create a time layer
+        if self.wmsTimeLayerMode and ivMinForAllYears != -ivMaxForAllYears:
+            layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}"
+            print(f'Time layer code is {layerCode}')
+            layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator}"
+            classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
+
+            mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
+                                  self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True)
+
+            contextTimeBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+            contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+
+
+      #break
         #break
       #break
       contextBuilderByActivity[activityId].writeFooter();
+      if self.wmsTimeLayerMode:
+        contextTimeBuilderByActivity[activityId].writeFooter();
       # print (f'Processing activity \'{a}\' > indicator \'{i}\' > year \'{y}\' ...')
 
     mapBuilder.writeFooter()
     contextBuilder.writeFooter()
+    if self.wmsTimeLayerMode:
+      mapTimeBuilder.writeFooter()
+      contextTimeBuilder.writeFooter()
+
     elapsed_time = time.time() - start_time
     print( 'Execution time: %.3f' % (elapsed_time))
     print(f"Number of layers added to mapfile: {numberOfLayers}.")
+
+  def getIndicatorFullLabel(self, indicator, lIndicators):
+    query = f'"id" = \'{indicator}\''
+    request = QgsFeatureRequest().setFilterExpression(query)
+    feature = lIndicators.getFeatures(request)
+    for f in feature:
+        name = f.attribute('name')
+        if f.attribute('unit') == '-':
+            return f.attribute('name')
+        else:
+            return '{name} ({unit})'.format(name=f.attribute('name'), unit=f.attribute('unit'))
 
 
 MosesPublication();
