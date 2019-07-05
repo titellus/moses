@@ -186,15 +186,14 @@ class MapfileBuilder:
                   password='{dbPassword}' port={dbPort}"
       DATA "wkb_geometry FROM (
         SELECT v.nuts_id, v.activity_id, v.indicator_id, year, value, status, data_source, website, wkb_geometry
-        FROM {dbSchema}.moses_indicator_values v, {dbSchema}.moses_indicators i, {dbSchema}.moses_activities a, {dbSchema}.nuts n
+        FROM {dbSchema}.{dbTable} v, {dbSchema}.moses_indicators i, {dbSchema}.moses_activities a, {dbSchema}.nuts n
         WHERE
           v.indicator_id = i.id 
           AND v.activity_id = a.id 
           AND v.nuts_id = n.nuts_id
           AND n.levl_code = '{level}'
           AND i.id = '{indicator}'
-          AND a.id = '{activity}'
-          AND v.year in ({year}))
+          AND a.id = '{activity}' {yearFilter}
             AS RS USING UNIQUE nuts_id USING srid=4326"
 
       PROJECTION
@@ -229,6 +228,7 @@ class MapfileBuilder:
         wms_timeextent "2013,2014,2015"
         wms_timeitem "year"
         wms_timeformat "YYYY"
+        wms_timedefault "2015"
   """
 
   CATEGORY = """
@@ -265,7 +265,7 @@ END
     mapfile.close()
 
   def writeLayer(self, layerCode, layerTitle, layerAbstract, level, activity, indicator, year, categories, dbHost, dbPort, dbName, dbUsername,
-                 dbPassword, dbSchema, activityFullLabel, indicatorFullLabel, asTime = False):
+                 dbPassword, dbSchema, activityFullLabel, indicatorFullLabel, asTime = False, dbTable = 'moses_indicator_values'):
     """
 
     :rtype: object
@@ -293,9 +293,11 @@ END
     if asTime:
         wmsTimeConfig = self.TIME
         yearList = "'2013', '2014', '2015'"
+        yearFilter = ''
     else:
         wmsTimeConfig = ''
         yearList = f"'{year}'"
+        yearFilter = f"AND v.year = '{year}'"
 
     layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                           layerTitle=layerTitle,
@@ -304,7 +306,7 @@ END
                                           layerAbstract=layerAbstract,
                                           activity=activity,
                                           indicator=indicator,
-                                          year=yearList,
+                                          yearFilter=yearFilter,
                                           projectName=self.projectName,
                                           layerMetadataUrl="",
                                           dbHost=dbHost,
@@ -313,6 +315,7 @@ END
                                           dbUsername=dbUsername,
                                           dbPassword=dbPassword,
                                           dbSchema=dbSchema,
+                                          dbTable=dbTable,
                                           categories=categoriesConfig,
                                           wmsTimeConfig=wmsTimeConfig)
     mapfile.write(layerConfig)
@@ -474,7 +477,9 @@ class MosesPublication:
     projectDescription = "Publishing indicators by NUTS level on marine coastline"
     projectUrl = "http://mosesproject.eu/"
     wmsBaseUrl = "http://www.ifremer.fr/services/wms/moses"
-    #wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
+    wmsTimeBaseUrl = "http://www.ifremer.fr/services/wms/moses"
+    # wmsBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
+    # wmsTimeBaseUrl = "http://localhost/cgi-bin/mapserv?map=/data/dev/moses/moses.map"
     debug = 'on'
 
     map = 'O:/wms/moses.map'
@@ -511,12 +516,12 @@ class MosesPublication:
         contextTimeBuilderByActivity = {}
     mapBuilder = MapfileBuilder(map, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
     mapBuilder.writeHeader()
-    mapTimeBuilder = MapfileBuilder(maptime, projectName, projectDescription, projectUrl, wmsBaseUrl, debug);
+    mapTimeBuilder = MapfileBuilder(maptime, projectName, projectDescription, projectUrl, wmsTimeBaseUrl, debug);
     mapTimeBuilder.writeHeader()
 
     # removeAllMapLayers ?
 
-    # nutsLevels = {1}
+    #nutsLevels = {1}
     nutsLevels = {0, 1, 2, 3}
     # ... activities
     requestActivities = QgsFeatureRequest()
@@ -641,10 +646,10 @@ class MosesPublication:
               classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
 
               mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
-                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True)
+                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True, 'moses_indicator_values_date')
 
-              contextTimeBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
-              contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+              contextTimeBuilder.writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
+              contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
 
 
       #break

@@ -224,6 +224,10 @@ CREATE TABLE moses_indicator_values
   CONSTRAINT moses_indicator_valuess_pkey PRIMARY KEY (nuts_id, activity_id, indicator_id, year)
 );
 
+DROP TABLE IF EXISTS moses_indicator_values_date;
+CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity_id, indicator_id,
+  TO_DATE(year, 'YYYY') as , value, status, data_source, website, remarks
+  FROM moses_indicator_values;
 
 -- TODO: Check duplicates first
 -- TODO: List non existing indicators
@@ -247,6 +251,7 @@ SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry
   FROM nuts n, moses_indicator_values i 
   WHERE n.nuts_id = i.nuts_id) WITH DATA;
   
+
 CREATE OR REPLACE VIEW moses_indicator_level_1 AS (
 SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
   FROM nuts n, moses_indicator_values i 
