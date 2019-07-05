@@ -193,7 +193,7 @@ class MapfileBuilder:
           AND v.nuts_id = n.nuts_id
           AND n.levl_code = '{level}'
           AND i.id = '{indicator}'
-          AND a.id = '{activity}' {yearFilter}
+          AND a.id = '{activity}' {yearFilter})
             AS RS USING UNIQUE nuts_id USING srid=4326"
 
       PROJECTION

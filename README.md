@@ -226,7 +226,7 @@ CREATE TABLE moses_indicator_values
 
 DROP TABLE IF EXISTS moses_indicator_values_date;
 CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity_id, indicator_id,
-  TO_DATE(year, 'YYYY') as , value, status, data_source, website, remarks
+  TO_DATE(year, 'YYYY') as year, value, status, data_source, website, remarks
   FROM moses_indicator_values;
 
 -- TODO: Check duplicates first
