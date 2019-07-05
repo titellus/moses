@@ -225,10 +225,10 @@ class MapfileBuilder:
   """
 
   TIME = """
-        wms_timeextent "2013,2014,2015"
+        wms_timeextent "{listOfYears}"
         wms_timeitem "year"
         wms_timeformat "YYYY"
-        wms_timedefault "2015"
+        wms_timedefault "{lastYear}"
   """
 
   CATEGORY = """
@@ -265,7 +265,7 @@ END
     mapfile.close()
 
   def writeLayer(self, layerCode, layerTitle, layerAbstract, level, activity, indicator, year, categories, dbHost, dbPort, dbName, dbUsername,
-                 dbPassword, dbSchema, activityFullLabel, indicatorFullLabel, asTime = False, dbTable = 'moses_indicator_values'):
+                 dbPassword, dbSchema, activityFullLabel, indicatorFullLabel, asTime = False, dbTable = 'moses_indicator_values', listOfYears = [2013, 2014, 2015]):
     """
 
     :rtype: object
@@ -291,12 +291,12 @@ END
     groupTokens[1] = indicatorFullLabel
 
     if asTime:
-        wmsTimeConfig = self.TIME
-        yearList = "'2013', '2014', '2015'"
+        wmsTimeConfig = self.TIME.format(
+            listOfYears=','.join(str(x) for x in listOfYears),
+            lastYear=listOfYears[0])
         yearFilter = ''
     else:
         wmsTimeConfig = ''
-        yearList = f"'{year}'"
         yearFilter = f"AND v.year = '{year}'"
 
     layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
@@ -564,6 +564,7 @@ class MosesPublication:
           # TODO: Use infinity
           ivMinForAllYears = 9999999
           ivMaxForAllYears = -9999999
+          listOfYears = []
           counterForAllYears = 0
 
           for year in years:
@@ -580,6 +581,7 @@ class MosesPublication:
             selection = lValue.getFeatures(request)
 
             if nbFeatures > 0:
+              listOfYears.append(year)
               indicatorGroupLayerName = indicatorFullLabel
               indicatorGroupLayer = activityGroupLayer.findGroup(indicatorGroupLayerName)
               if indicatorGroupLayer  is None:
@@ -646,7 +648,7 @@ class MosesPublication:
               classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
 
               mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
-                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True, 'moses_indicator_values_date')
+                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True, 'moses_indicator_values_date', listOfYears)
 
               contextTimeBuilder.writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
               contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
