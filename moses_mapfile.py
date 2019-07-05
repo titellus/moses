@@ -478,7 +478,7 @@ class MosesPublication:
     debug = 'on'
 
     map = 'O:/wms/moses.map'
-    maptime = 'O:/wms/moses.map'
+    maptime = 'O:/wms/moses-time.map'
     context = 'V:/moses/moses.xml'
     contexttime = 'V:/moses/moses-time.xml'
     # map = '/data/dev/moses/moses.map'
@@ -633,18 +633,18 @@ class MosesPublication:
               numberOfLayers = numberOfLayers + 1
 
 
-        # Create a time layer
-        if self.wmsTimeLayerMode and ivMinForAllYears != -ivMaxForAllYears:
-            layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}"
-            print(f'Time layer code is {layerCode}')
-            layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator}"
-            classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
+          # Create a time layer
+          if self.wmsTimeLayerMode and ivMinForAllYears != -ivMaxForAllYears:
+              layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}"
+              print(f'Time layer code is {layerCode}')
+              layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator}"
+              classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
 
-            mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
-                                  self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True)
+              mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
+                                      self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True)
 
-            contextTimeBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
-            contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+              contextTimeBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+              contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
 
 
       #break
