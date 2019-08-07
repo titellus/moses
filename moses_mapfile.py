@@ -178,7 +178,7 @@ class MapfileBuilder:
       TYPE POLYGON
       DUMP TRUE
       STATUS ON      
-      #EXTENT -180 -90 180 90
+      EXTENT -180 -90 180 90
       UNITS DD
       
       CONNECTIONTYPE POSTGIS
