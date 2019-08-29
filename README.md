@@ -215,6 +215,7 @@ CREATE TABLE moses_indicator_values
   nuts_level character varying(1),
   activity_id character varying(10) REFERENCES moses_activities(id),
   indicator_id character varying(10) REFERENCES moses_indicators(id),
+  unit character varying,
   year character varying(4),
   value numeric(24,15),
   status character varying(25),
@@ -225,7 +226,7 @@ CREATE TABLE moses_indicator_values
 );
 
 DROP TABLE IF EXISTS moses_indicator_values_date;
-CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity_id, indicator_id,
+CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity_id, indicator_id, unit,
   TO_DATE(year, 'YYYY') as year, value, status, data_source, website, remarks
   FROM moses_indicator_values;
 
@@ -234,11 +235,11 @@ CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity
 
 
 INSERT INTO moses_indicator_values
- (SELECT n.nuts_id, n.levl_code, nacescode, indicators, 2013, replace(year2013, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3, data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2013 != ''
+ (SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2013, replace(year2013, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3, data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2013 != ''
  UNION ALL
- SELECT n.nuts_id, n.levl_code, nacescode, indicators, 2014, replace(year2014, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2014 != ''
+ SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2014, replace(year2014, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2014 != ''
  UNION ALL
- SELECT n.nuts_id, n.levl_code, nacescode, indicators, 2015, replace(year2015, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2015 != '');
+ SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2015, replace(year2015, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2015 != '');
 
 
 CREATE OR REPLACE VIEW moses_indicator_values_with_nuts AS (
@@ -246,6 +247,7 @@ SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry
   FROM nuts n, moses_indicator_values i 
   WHERE n.nuts_id = i.nuts_id);
   
+DROP TABLE IF EXISTS moses_indicator_values_with_nuts_m;  
 CREATE TABLE moses_indicator_values_with_nuts_m AS (
 SELECT i.*, nuts_name, cntr_code, levl_code, wkb_geometry 
   FROM nuts n, moses_indicator_values i 
