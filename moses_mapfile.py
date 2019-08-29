@@ -185,7 +185,7 @@ class MapfileBuilder:
       CONNECTION "host={dbHost} dbname={dbName} user={dbUsername}
                   password='{dbPassword}' port={dbPort}"
       DATA "wkb_geometry FROM (
-        SELECT v.nuts_id, v.activity_id, v.indicator_id, year, value, status, data_source, website, wkb_geometry
+        SELECT v.nuts_id, v.activity_id, v.indicator_id, v.unit, year, value, status, data_source, website, wkb_geometry
         FROM {dbSchema}.{dbTable} v, {dbSchema}.moses_indicators i, {dbSchema}.moses_activities a, {dbSchema}.nuts n
         WHERE
           v.indicator_id = i.id 
