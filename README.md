@@ -218,7 +218,7 @@ CREATE TABLE moses_indicator_values
   unit character varying,
   year character varying(4),
   value numeric(24,15),
-  status character varying(25),
+  status character varying(254),
   data_source character varying(254),
   website character varying(254),
   remarks character varying(254),
@@ -235,11 +235,11 @@ CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity
 
 
 INSERT INTO moses_indicator_values
- (SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2013, replace(year2013, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3, data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2013 != ''
+ (SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2013, replace(year2013, ',', '.')::float AS y, s.name, data_sourc, website, remarks FROM moses_values_tmp t, nuts n, moses_status s WHERE s.id = status_1 AND t.nuts_id = n.nuts_id AND year2013 != ''
  UNION ALL
- SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2014, replace(year2014, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2014 != ''
+ SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2014, replace(year2014, ',', '.')::float AS y, s.name ,data_sourc, website, remarks FROM moses_values_tmp t, nuts n, moses_status s WHERE s.id = status_2 AND t.nuts_id = n.nuts_id AND year2014 != ''
  UNION ALL
- SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2015, replace(year2015, ',', '.')::float AS y, status_1 || ',' || status_2 || ',' ||status_3,data_sourc, website, remarks FROM moses_values_tmp t, nuts n WHERE t.nuts_id = n.nuts_id AND year2015 != '');
+ SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2015, replace(year2015, ',', '.')::float AS y, s.name,data_sourc, website, remarks FROM moses_values_tmp t, nuts n, moses_status s WHERE s.id = status_3 AND t.nuts_id = n.nuts_id AND year2015 != '');
 
 
 CREATE OR REPLACE VIEW moses_indicator_values_with_nuts AS (
