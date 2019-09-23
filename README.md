@@ -61,7 +61,7 @@ set SHPENCODING=LATIN1
 SET PGCLIENTENCODING=%SHPENCODING%
 chcp 65001
 ogr2ogr.exe -f PostgreSQL ^
- PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ PG:"host=vpostgres2.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
  -lco GEOM_TYPE=geometry ^
  -lco OVERWRITE=YES ^
  -lco SCHEMA=moses ^
@@ -71,28 +71,28 @@ ogr2ogr.exe -f PostgreSQL ^
  X:\data_QGIS\MOSES\data\WP4\NUTS\NUTS.shp
 
 ogr2ogr.exe -f PostgreSQL ^
- PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ PG:"host=vpostgres2.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
  -lco SCHEMA=moses ^
  -nln moses_activities_tmp -overwrite ^
  -lco OVERWRITE=YES ^
  X:\data_QGIS\MOSES\data\WP4\moses_NACES.csv
 
 ogr2ogr.exe -f PostgreSQL ^
- PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ PG:"host=vpostgres2.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
  -lco SCHEMA=moses ^
  -nln moses_indicators_tmp -overwrite ^
  -lco OVERWRITE=YES ^
  X:\data_QGIS\MOSES\data\WP4\moses_indicator.csv
 
 ogr2ogr.exe -f PostgreSQL ^
- PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ PG:"host=vpostgres2.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
  -lco SCHEMA=moses ^
  -nln moses_status_tmp -overwrite ^
  -lco OVERWRITE=YES ^
  X:\data_QGIS\MOSES\data\WP4\moses_status.csv
 
 ogr2ogr.exe -f PostgreSQL ^
- PG:"host=vpostgres2val.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
+ PG:"host=vpostgres2.ifremer.fr port=5432 user=moses_usr password='The ...' dbname=moses schemas=public,postgis active_schema=postgis" ^
  -lco SCHEMA=moses ^
  -nln moses_values_tmp -overwrite ^
  -lco OVERWRITE=YES ^
