@@ -173,6 +173,7 @@ class MapfileBuilder:
   """
 
   LAYER = """
+    # # {layerCode} ##
     LAYER
       NAME "{layerCode}"
       TYPE POLYGON
