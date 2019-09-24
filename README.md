@@ -234,6 +234,12 @@ CREATE TABLE moses_indicator_values_date AS SELECT nuts_id, nuts_level, activity
 -- TODO: List non existing indicators
 
 
+UPDATE moses_values_tmp SET status_1 = '-' WHERE status_1 = '';
+UPDATE moses_values_tmp SET status_2 = '-' WHERE status_2 = '';
+UPDATE moses_values_tmp SET status_3 = '-' WHERE status_3 = '';
+
+INSERT INTO moses_status VALUES ('-', '');
+
 INSERT INTO moses_indicator_values
  (SELECT n.nuts_id, n.levl_code, nacescode, indicators, unit, 2013, replace(year2013, ',', '.')::float AS y, s.name, data_sourc, website, remarks FROM moses_values_tmp t, nuts n, moses_status s WHERE s.id = status_1 AND t.nuts_id = n.nuts_id AND year2013 != ''
  UNION ALL
