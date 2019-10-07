@@ -421,7 +421,10 @@ class MosesPublication:
     print(f" * Building classification with {nbOfClasses} with interval {interval} between {min} and {max} ...")
     for x in range(0, nbOfClasses):
       lower = min + (interval * x)
-      upper = lower + interval
+      if nbOfClasses - 1 == x:
+        upper = max
+      else:
+        upper = lower + interval
       # TODO: Round values
       color = self.palette.color(x/nbOfClasses).getRgb()
       print(color)
