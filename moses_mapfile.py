@@ -428,7 +428,7 @@ class MosesPublication:
       # TODO: Round values
       color = self.palette.color(x/nbOfClasses).getRgb()
       print(color)
-      classes[x] = self.ThematicCategory(lower, upper, f'{lower} - {upper}', f'{color[0]} {color[1]} {color[2]}')
+      classes[x] = self.ThematicCategory(lower, upper, f'{lower:.3f} - {upper:.3f}', f'{color[0]} {color[1]} {color[2]}')
     return classes
 
   def addFilteredLayer(self, layerCode, n, a, i, y, group, nbOfClasses, min, max):
