@@ -545,7 +545,8 @@ class MosesPublication:
       # layerTreeRoot
       activityId = activityFeature.attribute('id')
       activityLabel = activityFeature.attribute('name')
-      activityFullLabel = f'{activityLabel} (NACE code: {activityId})'
+      #activityFullLabel = f'{activityLabel} (NACE code: {activityId})'
+      activityFullLabel = f'{activityLabel}'
       activityGroupLayerName = f'{activityFullLabel}'
       # activityGroupLayerName = f'{activityId}.{activityLabel}'
 
