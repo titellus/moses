@@ -221,8 +221,9 @@ class MapfileBuilder:
 
       CLASS
         NAME "No data"
-        EXPRESSION ([value] = '')
+        EXPRESSION (NOT [value])
         STYLE
+          COLOR 240 240 240
           OUTLINECOLOR 211 211 211
         END
       END
