@@ -63,8 +63,8 @@ class ContextBuilder:
         groupTokens = layerCode.replace('.', '/').split('/')
         groupTokens.pop()
         groupTokens.pop(0)
-        groupTokens[0] = activityFullLabel
-        groupTokens[1] = indicatorFullLabel
+        groupTokens[1] = activityFullLabel
+        groupTokens[2] = indicatorFullLabel
 
         layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                               layerGroup='/'.join(groupTokens),
