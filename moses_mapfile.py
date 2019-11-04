@@ -35,6 +35,7 @@ class ContextBuilder:
     </ows-context:Layer>"""
 
     LAYER = """<ows-context:Layer name="{layerCode}" group="/{layerGroup}" hidden="true" opacity="1">
+      <ows:Title>{year}</ows:Title>
       <ows-context:Server service="urn:ogc:serviceType:WMS" version="1.3.0">
         <ows-context:OnlineResource xlink:href="{wmsUrl}"/>
       </ows-context:Server>
@@ -57,7 +58,7 @@ class ContextBuilder:
         contextFile.write(self.HEADER)
         contextFile.close()
 
-    def writeLayer(self, layerCode, wmsUrl, activityFullLabel, indicatorFullLabel):
+    def writeLayer(self, layerCode, wmsUrl, activityFullLabel, indicatorFullLabel, year):
         contextFile = open(self.file, "a+")
 
         groupTokens = layerCode.replace('.', '/').split('/')
@@ -68,7 +69,8 @@ class ContextBuilder:
 
         layerConfig = f"" + self.LAYER.format(layerCode=layerCode,
                                               layerGroup='/'.join(groupTokens),
-                                              wmsUrl=wmsUrl)
+                                              wmsUrl=wmsUrl,
+                                              year=year)
         contextFile.write(layerConfig)
         contextFile.close()
 
@@ -643,8 +645,8 @@ class MosesPublication:
               if self.isBuildingMapfile:
                 mapBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel)
-                contextBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
-                contextBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel)
+                contextBuilder.writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel, year)
+                contextBuilderByActivity[activityId].writeLayer(layerCode, wmsBaseUrl, activityFullLabel, indicatorFullLabel, year)
 
 
               if self.isAddingLayerToQgisProject:
@@ -663,8 +665,8 @@ class MosesPublication:
               mapTimeBuilder.writeLayer(layerCode, layerTitle, layerAbstract, nutsLevel, activityId, indicator, year, classes, self.dbHost,
                                       self.dbPort, self.dbName, self.dbUsername, self.dbPassword, self.dbSchema, activityFullLabel, indicatorFullLabel, True, 'moses_indicator_values_date', listOfYears)
 
-              contextTimeBuilder.writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
-              contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel)
+              contextTimeBuilder.writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel, '')
+              contextTimeBuilderByActivity[activityId].writeLayer(layerCode, wmsTimeBaseUrl, activityFullLabel, indicatorFullLabel, '')
 
 
       #break
