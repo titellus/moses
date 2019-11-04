@@ -174,12 +174,13 @@ DROP TABLE IF EXISTS moses_activities CASCADE;
 CREATE TABLE moses_activities
 (
   id character varying(10) PRIMARY KEY,
+  sector character varying(255),
   section character varying(1) NOT NULL,
   div character varying(2) NOT NULL,
   name character varying(254)
 );
 
-INSERT INTO moses_activities SELECT replace(nace_id, '.', ','), nace_section, nace_div, nace_descr FROM moses_activities_tmp WHERE nace_id IS NOT NULL AND nace_id != '';
+INSERT INTO moses_activities SELECT replace(nace_id, '.', ','), sector, nace_section, nace_div, nace_descr FROM moses_activities_tmp WHERE nace_id IS NOT NULL AND nace_id != '';
 
 
 -- Status

@@ -86,10 +86,10 @@ class MapfileBuilder:
     IMAGETYPE PNGA
     SYMBOLSET "symbol/symbols.txt"
     FONTSET "fonts/fonts.txt"
-  
+
     DEBUG {debug}
     CONFIG "MS_ERRORFILE" "stderr"
-    
+
     OUTPUTFORMAT
       NAME "PNGA"
       DRIVER "AGG/PNG"
@@ -98,7 +98,7 @@ class MapfileBuilder:
       EXTENSION "png"
       FORMATOPTION "INTERLACE=OFF"
     END
-  
+
     OUTPUTFORMAT
       NAME "PNG-8"
       DRIVER "GD/PNG"
@@ -107,7 +107,7 @@ class MapfileBuilder:
       EXTENSION "png"
       FORMATOPTION "INTERLACE=OFF"
     END
-  
+
     OUTPUTFORMAT
       NAME jpeg
       DRIVER AGG/JPEG
@@ -117,7 +117,7 @@ class MapfileBuilder:
       FORMATOPTION "INTERLACE=OFF"
       FORMATOPTION "QUALITY=80"
     END
-  
+
     WEB
       IMAGEPATH "/var/www/mapserver/tmp/"
       METADATA
@@ -144,7 +144,7 @@ class MapfileBuilder:
         wms_inspire_SpatialDataServiceType "view"
       END
     END
-  
+
     LEGEND
       STATUS ON
       KEYSIZE 20 10
@@ -156,14 +156,14 @@ class MapfileBuilder:
           COLOR 0 0 89
       END
     END
-  
+
     #  pour l'impression A3
     MAXSIZE 5000
-  
+
     PROJECTION
       "init=epsg:4326"
     END
-  
+
     SYMBOL
       NAME "circle"
       TYPE ellipse
@@ -178,49 +178,54 @@ class MapfileBuilder:
       NAME "{layerCode}"
       TYPE POLYGON
       DUMP TRUE
-      STATUS ON      
+      STATUS ON
       EXTENT -180 -90 180 90
       UNITS DD
-      
+
       CONNECTIONTYPE POSTGIS
       CONNECTION "host={dbHost} dbname={dbName} user={dbUsername}
                   password='{dbPassword}' port={dbPort}"
       DATA "wkb_geometry FROM (
-        SELECT v.nuts_id, v.activity_id, v.indicator_id, v.unit, year, value, status, data_source, website, wkb_geometry
-        FROM {dbSchema}.{dbTable} v, {dbSchema}.moses_indicators i, {dbSchema}.moses_activities a, {dbSchema}.nuts n
-        WHERE
-          v.indicator_id = i.id 
-          AND v.activity_id = a.id 
-          AND v.nuts_id = n.nuts_id
-          AND n.levl_code = '{level}'
-          AND i.id = '{indicator}'
-          AND a.id = '{activity}' {yearFilter})
-            AS RS USING UNIQUE nuts_id USING srid=4326"
+      SELECT n.nuts_id, v.activity_id, v.indicator_id, v.unit,
+        year, value, status, data_source, website, wkb_geometry
+              FROM {dbSchema}.nuts n
+             LEFT OUTER JOIN {dbSchema}.{dbTable} v
+               ON v.nuts_id = n.nuts_id AND v.indicator_id = '{indicator}'
+                 AND v.activity_id = '{activity}' {yearFilter}
+              WHERE n.levl_code = '{level}'
+          ) AS RS USING UNIQUE nuts_id USING srid=4326"
 
       PROJECTION
           "init=epsg:4326"
       END
-      
+
       TEMPLATE "queryable"
       METADATA
         wms_title "{layerTitle}"
         wms_name "{layerCode}"
         wms_abstract "{layerAbstract}"
-        wms_srs "EPSG:4326" 
+        wms_srs "EPSG:4326"
         wms_connectiontimeout "120"
         wms_server_version "1.3.0"
         wms_attribution_title "{projectName}"
         wms_attribution_onlineresource "http://mosesproject.eu/"
-        wms_layer_group "/{layerGroup}"        
-        wms_group_title "/{layerGroup}"        
-        wms_group_abstract ""        
+        wms_layer_group "/{layerGroup}"
+        wms_group_title "/{layerGroup}"
+        wms_group_abstract ""
         gml_include_items "all"
         wms_metadataurl_format "text/xml"
         wms_metadataurl_type "TC211"
         wms_metadataurl_href "{layerMetadataUrl}"
-        {wmsTimeConfig} 
+        {wmsTimeConfig}
       END
-      
+
+      CLASS
+        NAME "No data"
+        EXPRESSION ([value] = '')
+        STYLE
+          OUTLINECOLOR 211 211 211
+        END
+      END
       {categories}
     END
   """
@@ -288,8 +293,8 @@ END
     groupTokens = layerCode.replace('.', '/').split('/')
     groupTokens.pop()
     groupTokens.pop(0)
-    groupTokens[0] = activityFullLabel
-    groupTokens[1] = indicatorFullLabel
+    groupTokens[1] = activityFullLabel
+    groupTokens[2] = indicatorFullLabel
 
     if asTime:
         wmsTimeConfig = self.TIME.format(
@@ -544,11 +549,13 @@ class MosesPublication:
       # help(QgsProject.instance().layerTreeRoot())
       # layerTreeRoot
       activityId = activityFeature.attribute('id')
+      activitySector = activityFeature.attribute('sector').replace('/', '-')
       activityLabel = activityFeature.attribute('name')
       #activityFullLabel = f'{activityLabel} (NACE code: {activityId})'
       activityFullLabel = f'{activityLabel}'
       activityGroupLayerName = f'{activityFullLabel}'
       # activityGroupLayerName = f'{activityId}.{activityLabel}'
+
 
       contextBuilderByActivity[activityId] = ContextBuilder(context.replace('.xml', f'{activityId.replace(",", "")}.xml'))
       contextBuilderByActivity[activityId].writeHeader();
@@ -626,7 +633,7 @@ class MosesPublication:
                 print(f"  * Classe #{c}. {classes[c].label}")
 
               #  NUTS3.311.V16110.2013
-              layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}.{year}"
+              layerCode = f"MOSES.{activitySector}.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}.{year}"
               print(f'Layer code is {layerCode}')
               layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator} in {year}"
 
@@ -647,7 +654,7 @@ class MosesPublication:
 
           # Create a time layer
           if self.wmsTimeLayerMode and ivMinForAllYears != -ivMaxForAllYears:
-              layerCode = f"MOSES.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}"
+              layerCode = f"MOSES.{activitySector}.{activityId.replace(',', '')}.{indicator}.NUTS{nutsLevel}"
               print(f'Time layer code is {layerCode}')
               layerTitle = f"Moses indicator for nuts level {nutsLevel} activity {activityId} indicator {indicator}"
               classes = self.buildClassification(ivMinForAllYears, ivMaxForAllYears, counterForAllYears, self.classificationNbOfClasses)
@@ -689,4 +696,4 @@ class MosesPublication:
             return '{name} ({unit})'.format(name=f.attribute('name'), unit=f.attribute('unit'))
 
 
-MosesPublication();
+MosesPublication()
