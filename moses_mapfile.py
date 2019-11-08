@@ -34,7 +34,7 @@ class ContextBuilder:
       <ows:Title>OpenStreetMap</ows:Title>
     </ows-context:Layer>"""
 
-    LAYER = """<ows-context:Layer name="{layerCode}" group="/{layerGroup}" hidden="true" opacity="1">
+    LAYER = """<ows-context:Layer name="{layerCode}" group="/{layerGroup}" hidden="true" opacity="1" groupcombo="moses">
       <ows:Title>{year}</ows:Title>
       <ows-context:Server service="urn:ogc:serviceType:WMS" version="1.3.0">
         <ows-context:OnlineResource xlink:href="{wmsUrl}"/>
